@@ -1,0 +1,10 @@
+channels:
+    - conda-forge
+    - bioconda
+dependencies:
+    - ucsc-bedgraphtobigwig =377
+    - ucsc-bigwigtobedgraph =377
+    - ucsc-liftover =377
+    - ucsc-bedsort =377
+    - ucsc-bigwigmerge =377
+    - bedops =2.4.39

@@ -1,0 +1,4 @@
+*.log
+*.swp
+/.snakemake/
+slurm*.out

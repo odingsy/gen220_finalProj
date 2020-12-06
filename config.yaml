@@ -1,0 +1,7 @@
+samples: acc.tab
+
+chainFile: 
+    hg19tohg38.gz: http://hgdownload.cse.ucsc.edu/goldenpath/hg19/liftOver/hg19ToHg38.over.chain.gz
+
+chromSize:
+    hg38size: http://genome.ucsc.edu/goldenpath/help/hg38.chrom.sizes
