@@ -19,18 +19,10 @@ checkpoint download:
     shell:
         """
         sleep 2
-        if [ ! -s {output.plus} ]; then
-            rm -f {output.plus}
-            wget -r -nd -A '*PLUS*,*plus*' -O {output.plus} {params.ftp} # && [[ -s {output.plus} ]]
-            sleep 2
-        fi
-
-        
-        if [ ! -s {output.minus} ]; then
-            rm -f {output.minus}
-            wget -r -nd -A '*MINUS*,*minus*' -O {output.minus} {params.ftp} # && [[ -s {output.minus} ]]
-            sleep 2
-        fi
+        wget -r -nd -A '*PLUS*,*plus*' -O {output.plus} {params.ftp} # && [[ -s {output.plus} ]]
+        sleep 2
+        wget -r -nd -A '*MINUS*,*minus*' -O {output.minus} {params.ftp} # && [[ -s {output.minus} ]]
+        sleep 2
         """
         
 
@@ -49,20 +41,24 @@ checkpoint download:
 #############  
 
 def BounceBackReDownload(wildcards):
-    import os
-    plus = glob_wildcards('data/{sample}_plus.bigWig').sample
-    notplus = list(set(list(geo.index)) - set(plus))
-    notplus_plus = [sample + '_plus' for sample in notplus] 
-    cmd = 'rm -f ' + ' '.join(expand('data/{yet_to_download}.bigWig', yet_to_download = notplus_plus))
-    os.system(cmd)
+    import os, re
+    from itertools import product
 
-    minus = glob_wildcards('data/{sample}_minus.bigWig').sample
-    notminus = list(set(list(geo.index)) - set(minus))
-    notminus_minus = [sample + '_minus' for sample in notminus]
-    cmd = 'rm -f ' + ' '.join(expand('data/{yet_to_download}.bigWig', yet_to_download = notminus_minus))
-    os.system(cmd)
+    sampdir = 'data'
+    existingSamp = []
 
-    return expand('data/{yet_to_download}_{ps}.bigWig', yet_to_download = notplus + notminus, ps = ['plus', 'minus'])
+    # get rid of empty file. 
+    for samp in os.scandir(sampdir):
+        if os.path.getsize(samp) == 0:
+            os.remove(samp)
+        else:
+            existingSamp.append(samp.path)
+    allSamp = [samp + pm + '.bigWig' for samp in geo.index for pm in ['_plus', '_minus']]
+    allSamp = [os.path.join(sampdir, samp) for samp in allSamp]
+    redownloadSamp = list(set(allSamp) - set(existingSamp))
+    # samples = [ re.search('/(.+?)_', samp)[1] for samp in redownloadSamp ]
+    # pms = [ re.search('_(.+?)\.', samp)[1] for samp in redownloadSamp ]
+    return redownloadSamp
 
 
 
