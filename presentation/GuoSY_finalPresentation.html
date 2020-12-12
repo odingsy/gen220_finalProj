@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Automating bigWig visualization using Snakemake</title>
+    <meta charset="utf-8" />
+    <meta name="date" content="2020-12-11" />
+    <link href="GuoSY_finalPresentation_files/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="GuoSY_finalPresentation_files/remark-css-0.0.1/middlebury-fonts.css" rel="stylesheet" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# <strong>Automating bigWig visualization using Snakemake</strong>
+## <div class="line-block">GEN220 Final Project</div>
+### <div class="line-block">Shiyuan Guo<br />
+sguo039@ucr.edu</div>
+### 12/11/2020
+
+---
+
+
+
+
+## What motivates a pipeline automation? 
+
+--
+
+- Reproducibility is the key in scientific computing. 
+
+--
+
+- A bioinformatic pipeine requires
+  + various tools written in different languages and 
+  + packages that keep evolving.
+
+--
+
+- To this end, a workflow manager bridges the needs and at the same time
+  + enables easy scaling up and 
+  + improve code reusability, thus improving toubleshoot experience.
+  + works well with `sbatch` and parallel processing. 
+
+---
+background-image: url(https://snakemake.github.io/img/jk/logo.png)
+class: inverse, center, middle
+
+---
+
+- Snakemake [1] was inspired by `GNU make` and was written in python (python is a type of snake!). 
+
+--
+
+- The original article has [1k+ citations](https://scholar.google.com/scholar_lookup?title=Snakemake--a%20scalable%20bioinformatics%20workflow%20engine&amp;publication_year=2012&amp;author=J.%20K%C3%B6ster&amp;author=S.%20Rahmann) and is popular in bioinforatics. 
+
+--
+
+- There are various workflow management systems, such [Galaxy](https://usegalaxy.org/) and [Common Workflow Language](https://www.commonwl.org/). 
+
+--
+
+- What makes snakemake stands out, in my opinion, is its seamless interaction with **python and conda**. 
+
+--
+
+- Here is the snakemake flavor of Kallisto workflow. 
+
+```python
+# construct a lookup table to match the output dir to input.    
+import pandas as pd
+stbl = pd.read_table("data/sra_info.tab", sep = '\t',  dtype=str).set_index("Run", drop = False)
+# more python code to do data munging 
+
+rule all:
+    input:
+        expand("results/{sample}", sample = stbl['newdir'])
+
+# rule kallisto_index:...
+rule kallisto_quan:
+    input:
+        lambda wildcards: stbl.loc[stbl['newdir'] == wildcards.sample, 'inputfq']
+    output:
+        directory("results/{sample}")
+    conda:
+        "envs/kallisto.yaml"
+    params:       
+        idx = expand("data/{idx}", idx = config["idx"]),
+    shell:
+        "kallisto quant -i {params.idx} -o {output} --single -l 300 -s 30 {input}"
+```
+
+---
+
+## Visualizing BigWig to uncover hotspots/coldspots of DNA damage. 
+
+--
+.pull-left[
+- DNA is prone to environmental and endogenous damages [2]. 
+
+
+- To assess a damage on replication and transcription, genome-wide mapping reveals the prefered damage sites. 
+
+
+- As a result of mapping and alignment, BigWig is generated to capture information on read alignment intensity. 
+] 
+
+
+--
+
+
+.pull-right[
+![an image](http://gensoft.pasteur.fr/docs/deepTools/2.4.2/_images/flowChart_FileFormats.png)
+[Adapted from Deeptools](http://gensoft.pasteur.fr/docs/deepTools/2.4.2/index.html)
+]
+
+---
+background-image: url(plots/plotCorrelation_page.png)
+class: center, middle
+background-size: contain
+---
+
+
+## File system and pipline overview. 
+
+.left-column[ 
+
+```bash
+.
+|-- README.md
+|-- Snakefile
+|-- WRAPPER_SLURM
+|-- acc.tab
+|-- config.yaml
+|-- data -&gt; /bigdata/
+|-- envs
+|   |-- bw_convert.yaml
+|   `-- deeptools.yaml
+`-- results
+
+3 directories, 7 files
+```
+
+]
+
+--
+
+.right-column[
+
+![:scale 60%](plots/dag.png)
+
+output `snakemake --dag -n -- all | dot -Tpng &gt; dag.png`. 
+]
+
+---
+## A general design principle (based on my experience so far.)
+
+--
+
+1. Starting with a toy dataset to run pipeline interactively (bash, python, R). 
+
+--
+
+2. Scaling up and generalization. 
+  + Utilizing the `--printshellcmd` tag to view the actual cmdlines after expansion. 
+  + `from snakemake.io import expand` to import and play around expand function
+  + `import yaml` and `config = yaml.load()` to test interaction with yaml. 
+
+--
+
+3. works with configuration to nail down your environment.  
+
+---
+class: center, middle
+background-size: contain
+
+## Sounds like linear but it's in fact iterative
+
+---
+class: center, middle
+background-size: contain
+## and sometimes can be quite daunting...
+
+---
+
+--
+
+- an `awk` line I need to [fix the overlapping intervals](https://www.biostars.org/p/81185/)
+
+```bash
+awk -v OFS="\t" "{ print $1, $2, $3, ".", $4 }" data/1.sorted.bedGraph &gt; data/1.awk.bedGraph
+```
+
+--
+
+- output of `snakemake --printshellcmd`, i.e.after snakemake expansion.
+
+```bash
+awk -v OFS="\t" "{ print \$1, \$2, \$3, \".\", \$4 }" data/1.sorted.bedGraph &gt; data/1.awk.bedGraph 
+```
+
+--
+
+- the line in `Snakefile`...
+
+```bash
+awk -v OFS="\\t" "{{ print \$1, \$2, \$3, \\".\\", \$4 }}" {output.hg38_sorted_bedgraph} &gt; {output.hg38_awk_bedgraph}
+```
+
+--
+
+### Trial-and-error backward helps!
+
+---
+
+## Problems
+
+--
+
+- `wget -A '&lt;wildcard&gt;' -O &lt;outputName&gt; &lt;FTP&gt;` does not seem to work well when paralleled. 
+
+--
+
+  + I believe paralleling might mess up the wildcard-FTP pairs. 
+
+--
+
+  + **Workaround**: separate the download rule from the main rule and use single core for downloading. Slowly by surely!
+  
+--
+
+- Tempted to produce a human readable intermediate filename. 
+
+--
+
+  + this will complicate the lookup (**a lot**). Too much to handle for a snakemake newbie! 
+
+--
+
+  + **Workaround**:         
+    1) use unique indices to name intermediate files and    
+    2) simplify lookup by coming up with all the sample attributes (and combination) by `pandas`. 
+
+---
+
+## Acknowledgement
+
+--
+
+- Dr. Stajich for showing the way to python and command lines world.
+
+--
+
+- Dear follow classmates to create a conducive piazza environment. 
+
+---
+
+class: inverse, center, middle
+background-size: contain
+# Thank you for your attention! 
+
+--
+
+## Welcome to pull requests my code at [odingsy/gen220_finalProj](https://github.com/odingsy/gen220_finalProj)
+---
+class: inverse
+# Reference 
+[1] J. Köster and S. Rahmann. "Snakemake—a scalable bioinformatics
+workflow engine". En. In: _Bioinformatics_ 28.19 (Oct. 2012).
+Publisher: Oxford Academic, pp. 2520-2522. ISSN: 1367-4803. DOI:
+[10.1093/bioinformatics/bts480](https://doi.org/10.1093%2Fbioinformatics%2Fbts480).
+URL:
+[https://academic.oup.com/bioinformatics/article/28/19/2520/290322](https://academic.oup.com/bioinformatics/article/28/19/2520/290322)
+(visited on 12/01/2020).
+
+[2] C. Mingard, J. Wu, M. McKeague, et al. "Next-generation DNA damage
+sequencing". En. In: _Chemical Society Reviews_ 49.20 (2020).
+Publisher: Royal Society of Chemistry, pp. 7354-7377. DOI:
+[10.1039/D0CS00647E](https://doi.org/10.1039%2FD0CS00647E). URL:
+[https://pubs.rsc.org/en/content/articlelanding/2020/cs/d0cs00647e](https://pubs.rsc.org/en/content/articlelanding/2020/cs/d0cs00647e)
+(visited on 11/06/2020).
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script src="macro.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false,
+"ratio": "16:9"
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
