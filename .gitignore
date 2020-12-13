@@ -3,3 +3,6 @@
 /.snakemake/
 slurm*.out
 .listing
+/presentation/.Rproj.user/
+*/.*
+*/*/.*

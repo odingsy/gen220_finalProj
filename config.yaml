@@ -3,3 +3,5 @@ samples: acc.tab
 chainFile: http://hgdownload.cse.ucsc.edu/goldenpath/hg19/liftOver/hg19ToHg38.over.chain.gz
 
 chromSize: http://genome.ucsc.edu/goldenpath/help/hg38.chrom.sizes
+
+blacklistEncode: https://www.encodeproject.org/files/ENCFF356LFX/@@download/ENCFF356LFX.bed.gz

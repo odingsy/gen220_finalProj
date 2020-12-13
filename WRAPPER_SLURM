@@ -1,0 +1,24 @@
+#!/bin/bash -l
+
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=16G
+#SBATCH --time=01:00:00
+#SBATCH --mail-user=sguo039@ucr.edu
+#SBATCH --mail-type=ALL
+#SBATCH --job-name="GEN220_finalProj"
+#SBATCH -p short
+
+date
+
+module unload miniconda2
+module load miniconda3
+
+conda create -n smenv
+
+conda activate smenv
+
+conda install --channel bioconda --channel conda-forge snakemake graphviz
+
+sleep 2

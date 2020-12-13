@@ -1,9 +1,4 @@
 sample	genome	cellline	label	ftp
-GSM4386818	hg38	Ls1034	oxaliplatin	ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4386nnn/GSM4386818/suppl/
-GSM4386808	hg38	RkoRep1	oxaliplatin	ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM4386nnn/GSM4386808/suppl/
-GSM2186625	hg19	GM12878	cisplatin	ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM2186nnn/GSM2186625/suppl/
-GSM2186627	hg19	GM12878	oxaliplatin	ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM2186nnn/GSM2186627/suppl/
-GSM1985845	hg19	NHF1	CPD	ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM1985nnn/GSM1985845/suppl/
 GSM1985857	hg19	NHF1	64PP	ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM1985nnn/GSM1985847/suppl/
 ENCFF977NNH	hg38	GM12878	atacSeq	https://www.encodeproject.org/files/ENCFF977NNH/@@download/ENCFF977NNH.bigWig
 ENCFF428XFI	hg38	GM12878	DNaseSeq	https://www.encodeproject.org/files/ENCFF428XFI/@@download/ENCFF428XFI.bigWig
