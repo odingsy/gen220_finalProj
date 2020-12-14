@@ -108,7 +108,7 @@ rule hg19tohg38:
 			awk -vOFS="\\t" "{{ print \$1, \$2, \$3, \\".\\", \$4 }}" {params.hg38_sorted_bedgraph} > {params.hg38_awk_bedgraph}
 			bedops --partition {params.hg38_awk_bedgraph} | bedmap --echo --mean --delim "\\t" - {params.hg38_awk_bedgraph} >  {params.hg38_fixedInterval_bedgraph}
 			bedGraphToBigWig {params.hg38_fixedInterval_bedgraph} {input.chromSize} {output.hg38_bw}
-			rm -f {input.hg19_bw} {params.hg19_bedgraph} {params.hg38_bedgraph} {params.hg38_sorted_bedgraph} {params.hg38_awk_bedgraph} {params.hg38_fixedInterval_bedgraph} 
+			rm -f {input.hg19_bw} {params.hg19_bedgraph} {params.hg38_bedgraph} {params.hg38_sorted_bedgraph} {params.hg38_awk_bedgraph} {params.hg38_fixedInterval_bedgraph} {params.unmapped} 
 		elif [ {params.genome} == 'hg38' ]
 		then
 			mv {input.hg19_bw} {output.hg38_bw}

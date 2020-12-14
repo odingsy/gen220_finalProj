@@ -1,0 +1,55 @@
+configfile: "config.yaml"
+
+# melt each GSM into plus and minus strands in sample table.
+import pandas as pd
+from numpy import nan
+
+stbl = pd.read_table(config['samples'], dtype = str)
+gs = stbl.loc[stbl['sample'].str.startswith('GS')]
+gs = gs.assign(plus = pd.Series(['plus'] * gs.shape[0]))
+gs = gs.assign(minus = pd.Series(['minus'] * gs.shape[0]))
+value_vars = ['plus', 'minus']
+other_vars = gs.columns.difference(value_vars)
+gs = pd.melt(gs, id_vars = other_vars, value_vars = value_vars, var_name = 'strand', ignore_index = False).sort_index().drop('value', axis = 1)
+gs = gs.assign(label_onPlot = pd.Series(gs['label'] + '_' + gs['strand'] + '_' + gs['cellline']))
+gs = gs.reindex(sorted(gs.columns), axis = 1)
+encode = stbl.loc[stbl['sample'].str.startswith('ENC')]
+encode = encode.assign(strand = pd.Series([nan] * encode.shape[0]))
+encode = encode.assign(label_onPlot = pd.Series(encode['label'])) 
+encode = encode.reindex(sorted(encode.columns), axis = 1)
+stbl = pd.concat([gs, encode], axis = 0, ignore_index = True)
+stbl = stbl.assign(index = pd.Series((stbl.index + 1).astype(str))) # the unique file name, as str. wildcard captured is a string not number!! 
+
+# define global regex 
+from re import escape
+wildcard_constraints:
+	index = '|'.join([escape(x) for x in stbl['index']]),
+	sample = '|'.join([escape(x) for x in stbl['sample']]),
+	label = '|'.join([escape(x) for x in stbl['label']]),
+	genome = '|'.join([escape(x) for x in set(stbl['genome'])]),
+	strand = '|'.join([escape(x) for x in set(x for x in stbl['strand'] if pd.notna(x))])
+
+
+############# 1.download and renaming (hard-coding GS ENC) 
+acceptName = { "minus": '*MINUS*,*minus*', 'plus': '*PLUS*,*plus*'}
+rule download_bw:
+	output:
+		'data/{index}.bigWig'
+	params:
+		ftp = lambda wc: stbl.loc[stbl['index'] == wc.index, 'ftp'].tolist(),
+		accept = lambda wc: stbl.loc[stbl['index'] == wc.index, 'strand'].replace(acceptName).tolist()
+	wildcard_constraints:
+		 index = '|'.join([escape(x) for x in stbl.loc[stbl['sample'].str.startswith('GS'), 'index']])
+	shell:
+		"""
+		wget --no-remove-listing -r -nd -A '{params.accept}' -O {output} {params.ftp}
+		"""
+
+
+
+
+
+############# 
+rule all:
+	input:
+		expand(rules.download_bw.output, index = stbl.loc[stbl['sample'].str.startswith('GS'), 'index'].tolist())
